@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Peer 2</title>
+</head>
+
+<body>
+    <h2>Peer 2 - Respond with Answer</h2>
+    <video id="remoteVideo" autoplay playsinline></video>
+    <textarea id="offer" placeholder="Paste Offer from Peer 1 here" rows="6" cols="60"></textarea>
+    <textarea id="answer" placeholder="Answer will appear here" rows="6" cols="60"></textarea>
+    <button id="respondButton">Respond with Answer</button>
+
+    <script>
+        const remoteVideo = document.getElementById('remoteVideo');
+        const offerTextarea = document.getElementById('offer');
+        const answerTextarea = document.getElementById('answer');
+        const respondButton = document.getElementById('respondButton');
+
+        const peerConnection = new RTCPeerConnection();
+
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                answerTextarea.value = JSON.stringify(peerConnection.localDescription);
+            }
+        };
+
+        peerConnection.ontrack = event => {
+            remoteVideo.srcObject = event.streams[0];
+        };
+
+        respondButton.onclick = async () => {
+            const offer = JSON.parse(offerTextarea.value);
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+        };
+    </script>
+</body>
+
+</html>

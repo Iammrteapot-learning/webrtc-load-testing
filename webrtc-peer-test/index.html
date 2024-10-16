@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Peer 1</title>
+</head>
+
+<body>
+    <h2>Peer 1 - Create Offer</h2>
+    <video id="localVideo" autoplay playsinline></video>
+    <textarea id="offer" placeholder="Offer will appear here" rows="6" cols="60"></textarea>
+    <textarea id="answer" placeholder="Paste Answer from Peer 2 here" rows="6" cols="60"></textarea>
+    <button id="startButton">Start Connection</button>
+
+    <script>
+        const localVideo = document.getElementById('localVideo');
+        const offerTextarea = document.getElementById('offer');
+        const answerTextarea = document.getElementById('answer');
+        const startButton = document.getElementById('startButton');
+
+        let localStream;
+        const peerConnection = new RTCPeerConnection();
+
+        // Access local media
+        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+            .then(stream => {
+                localVideo.srcObject = stream;
+                stream.getTracks().forEach(track => peerConnection.addTrack(track, stream));
+                localStream = stream;
+            }).catch(error => console.error('Error accessing media: ', error));
+
+        peerConnection.onicecandidate = event => {
+            if (event.candidate) {
+                offerTextarea.value = JSON.stringify(peerConnection.localDescription);
+            }
+        };
+
+        startButton.onclick = async () => {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+        };
+
+        answerTextarea.oninput = async () => {
+            const answer = JSON.parse(answerTextarea.value);
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        };
+    </script>
+</body>
+
+</html>
