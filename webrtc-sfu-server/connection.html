@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Janus WebRTC SFU Example</title>
+    <script src="janus.js"></script>
+    <!-- Load Janus -->
+  </head>
+  <body>
+    <h1>Janus WebRTC Video Room</h1>
+
+    <video id="localVideo" autoplay muted playsinline></video>
+    <video id="remoteVideo" autoplay playsinline></video>
+
+    <button id="start">Start</button>
+    <!-- Include webrtc-adapter.js -->
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+
+    <script>
+      window["adapter"] = adapter;
+    </script>
+
+    <script>
+      let janus = null;
+      let sfutest = null;
+      let opaqueId = "videoroomtest-" + Janus.randomString(12);
+      let server = "ws://127.0.0.1:8188"; // Janus WebSocket endpoint
+      let myRoom = 1234; // Use the room ID to create or join
+
+      Janus.init({
+        debug: "all",
+        callback: function () {
+          // Create a new Janus session
+          janus = new Janus({
+            server: server,
+            success: function () {
+              // Attach to VideoRoom plugin
+              janus.attach({
+                plugin: "janus.plugin.videoroom",
+                opaqueId: opaqueId,
+                success: function (pluginHandle) {
+                  sfutest = pluginHandle;
+                  let register = {
+                    request: "join",
+                    room: myRoom,
+                    ptype: "publisher",
+                    display: "user",
+                  };
+                  sfutest.send({ message: register });
+                },
+                error: function (error) {
+                  console.error("Error attaching plugin...", error);
+                },
+                onmessage: function (msg, jsep) {
+                  let event = msg["videoroom"];
+                  if (event === "joined") {
+                    // Publisher joined
+                    console.log("Successfully joined room:", myRoom);
+                    sfutest.createOffer({
+                      media: { video: true, audio: true }, // Enable audio and video
+                      success: function (jsep) {
+                        let publish = {
+                          request: "publish",
+                          audio: true,
+                          video: true,
+                        };
+                        sfutest.send({ message: publish, jsep: jsep });
+                      },
+                      error: function (error) {
+                        console.error("Error creating offer...", error);
+                      },
+                    });
+                  }
+                  if (jsep) {
+                    sfutest.handleRemoteJsep({ jsep: jsep });
+                  }
+                },
+                onlocalstream: function (stream) {
+                  // Attach the local video stream to the localVideo element
+                  let localVideo = document.getElementById("localVideo");
+                  Janus.attachMediaStream(localVideo, stream);
+                },
+                onremotestream: function (stream) {
+                  // Attach the remote video stream to the remoteVideo element
+                  let remoteVideo = document.getElementById("remoteVideo");
+                  Janus.attachMediaStream(remoteVideo, stream);
+                },
+                oncleanup: function () {
+                  console.log("Cleanup done!");
+                },
+              });
+            },
+            error: function (error) {
+              console.error("Janus error...", error);
+            },
+            destroyed: function () {
+              window.location.reload();
+            },
+          });
+        },
+      });
+
+      // Button to start interaction with the Janus server
+      document.getElementById("start").onclick = function () {
+        Janus.log("Starting WebRTC session...");
+      };
+    </script>
+  </body>
+</html>
